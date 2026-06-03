@@ -45,7 +45,7 @@ class SkillCreate(BaseModel):
     permission_level: str = "team"
     content_public: str = ""
     content_encrypted: str = ""
-    category: str = ""
+    category: list[str] = []
     tags: list[str] = []
     input_schema: dict[str, Any] = {}
     output_schema: dict[str, Any] = {}
@@ -75,7 +75,7 @@ class SkillOut(BaseModel):
     description: str
     type: str
     permission_level: str
-    category: str
+    category: list[str]
     tags: list[str]
     version: int
     status: str

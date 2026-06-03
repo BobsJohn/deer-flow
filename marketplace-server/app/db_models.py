@@ -49,7 +49,7 @@ class Skill(Base):
     permission_level = Column(Enum("public", "team", "commercial", name="permission_level"), nullable=False, default="team")
     content_public = Column(Text, default="")
     content_encrypted = Column(Text, default="")
-    category = Column(String(64), default="")
+    category = Column(Text, default="[]")  # JSON list
     tags = Column(Text, default="[]")  # JSON list
     input_schema = Column(Text, default="{}")  # JSON
     output_schema = Column(Text, default="{}")  # JSON

@@ -48,7 +48,7 @@ async def list_skills(
 
 
 @router.get("/{skill_id}", response_model=SkillOut)
-async def get_skill(skill_id: int, db: AsyncSession = Depends(get_db)):
+async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)):
     skill = await db.get(Skill, skill_id)
     if skill is None:
         raise_not_found("Skill", skill_id)
@@ -65,7 +65,7 @@ async def create_skill(body: SkillCreate, db: AsyncSession = Depends(get_db), te
         permission_level=body.permission_level,
         content_public=body.content_public,
         content_encrypted=body.content_encrypted,
-        category=body.category,
+        category=dump_json_field(body.category),
         tags=dump_json_field(body.tags),
         input_schema=dump_json_field(body.input_schema),
         output_schema=dump_json_field(body.output_schema),
@@ -84,14 +84,14 @@ async def create_skill(body: SkillCreate, db: AsyncSession = Depends(get_db), te
 
 
 @router.put("/{skill_id}", response_model=SkillOut)
-async def update_skill(skill_id: int, body: SkillUpdate, db: AsyncSession = Depends(get_db)):
+async def update_skill(skill_id: str, body: SkillUpdate, db: AsyncSession = Depends(get_db)):
     skill = await db.get(Skill, skill_id)
     if skill is None:
         raise_not_found("Skill", skill_id)
 
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        if field == "tags":
+        if field == "tags" or field == "category":
             setattr(skill, field, dump_json_field(value))
         elif field in ("input_schema", "output_schema", "examples"):
             setattr(skill, field, dump_json_field(value))
@@ -132,7 +132,7 @@ def _skill_to_out(skill: Skill) -> SkillOut:
         description=skill.description,
         type=skill.type,
         permission_level=skill.permission_level,
-        category=skill.category,
+        category=parse_json_field(skill.category, []),
         tags=parse_json_field(skill.tags, []),
         version=skill.version,
         status=skill.status,

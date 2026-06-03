@@ -61,13 +61,17 @@ const config = {
         destination: `${gatewayURL}/api/skills/:path*`,
       });
 
-      // Catch-all for remaining gateway API routes (models, threads, memory,
-      // mcp, artifacts, uploads, suggestions, runs, etc.) that don't have
-      // their own NEXT_PUBLIC_* env var toggle.
-      //
-      // NOTE: this must come AFTER the /api/langgraph rewrite above so that
-      // LangGraph-compatible routes keep their public prefix while Gateway
-      // receives its native /api/* paths.
+      // 能力广场 API 代理到 marketplace-server
+      rewrites.push({
+        source: "/api/marketplace",
+        destination: `http://127.0.0.1:8003/api/marketplace`,
+      });
+      rewrites.push({
+        source: "/api/marketplace/:path*",
+        destination: `http://127.0.0.1:8003/api/marketplace/:path*`,
+      });
+
+      // Catch-all for remaining gateway API routes
       rewrites.push({
         source: "/api/:path*",
         destination: `${gatewayURL}/api/:path*`,
