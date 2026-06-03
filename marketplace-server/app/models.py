@@ -419,6 +419,7 @@ class KbDocumentOut(BaseModel):
 class UserCreate(BaseModel):
     name: str = Field(..., max_length=128)
     email: str = Field(..., max_length=256)
+    password: str = ""
     role: str = "user"
 
 
@@ -466,3 +467,32 @@ class SearchResultItem(BaseModel):
 class SearchResults(BaseModel):
     query: str
     results: list[SearchResultItem]
+
+# ─── Auth ───
+
+class RegisterRequest(BaseModel):
+    name: str = Field(..., max_length=128)
+    email: str = Field(..., max_length=256)
+    password: str = Field(..., min_length=6)
+    team_id: int = 1
+    role: str = "user"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserOut(BaseModel):
+    id: int
+    team_id: int
+    name: str
+    email: str
+    role: str
+
+    model_config = {"from_attributes": True}
+
+
+class LoginResponse(BaseModel):
+    token: str
+    user: UserOut

@@ -1,6 +1,8 @@
 """API 密钥管理路由。"""
 
+import hashlib
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -10,7 +12,6 @@ from app.database import get_db
 from app.db_models import ApiKey
 from app.models import ApiKeyCreate, ApiKeyOut
 from app.routers.common import dump_json_field, parse_json_field, raise_not_found
-from app.auth import generate_api_key, hash_key
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,8 @@ async def create_api_key(
     user_id: int = 1,
 ):
     """创建 API Key。返回原始 key（仅此一次）。"""
-    raw_key = generate_api_key()
-    key_hash = hash_key(raw_key)
+    raw_key = "mkp_" + secrets.token_hex(32)
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
     ak = ApiKey(
         team_id=team_id,

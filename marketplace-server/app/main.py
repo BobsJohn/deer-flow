@@ -7,11 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.auth import ApiKeyMiddleware
+from app.auth import AuthMiddleware
 from app.database import init_db
 from app.routers import (
     agents,
     api_keys,
+    auth,
     dashboard,
     employees,
     execution_logs,
@@ -96,10 +97,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # API Key 认证中间件
-    app.add_middleware(ApiKeyMiddleware)
+    # JWT 认证中间件
+    app.add_middleware(AuthMiddleware)
 
     # 注册路由
+    app.include_router(auth.router)
     app.include_router(teams.router)
     app.include_router(skills.router)
     app.include_router(mcp_tools.router)

@@ -1,48 +1,57 @@
-"""API Key 认证中间件。"""
+"""JWT 认证中间件。"""
 
-import hashlib
 import logging
 import os
-import secrets
 
+import jwt
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
+JWT_SECRET = "marketplace-dev-secret-change-in-production"
+JWT_ALGORITHM = "HS256"
 
-def hash_key(key: str) -> str:
-    """对 API Key 做 SHA-256 哈希。"""
-    return hashlib.sha256(key.encode()).hexdigest()
-
-
-def generate_api_key() -> str:
-    """生成一个安全的 API Key (mkp_xxx)。"""
-    return "mkp_" + secrets.token_hex(32)
+PREFIXES_TO_PUBLIC = {"/health", "/docs", "/redoc", "/openapi.json"}
+PUBLIC_PATHS = {"/api/marketplace/login", "/api/marketplace/register"}
+PUBLIC_PREFIXES = {"/api/marketplace/teams"}
 
 
-class ApiKeyMiddleware(BaseHTTPMiddleware):
-    """简单 API Key 认证中间件。
+def _is_public(path: str) -> bool:
+    if path in PREFIXES_TO_PUBLIC or path in PUBLIC_PATHS:
+        return True
+    for prefix in PUBLIC_PREFIXES:
+        if path.startswith(prefix):
+            return True
+    return False
 
-    从 X-API-Key 头或 ?api_key 查询参数读取 key。
-    如果 MARKETPLACE_API_KEY 环境变量未设置，则跳过认证（开发模式）。
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """JWT 认证中间件。
+
+    从 Authorization: Bearer <token> 头读取 token。
+    如果 SKIP_AUTH=true，则跳过认证（开发模式）。
     """
 
     async def dispatch(self, request: Request, call_next):
-        # 健康检查和 docs 路径跳过认证
-        if request.url.path in ("/health", "/docs", "/redoc", "/openapi.json"):
+        if os.getenv("SKIP_AUTH") == "true":
             return await call_next(request)
 
-        expected_key = os.getenv("MARKETPLACE_API_KEY")
-        if not expected_key:
+        if _is_public(request.url.path):
             return await call_next(request)
 
-        api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-        if not api_key:
-            return JSONResponse(status_code=401, content={"detail": "Missing API key"})
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid Authorization header"})
 
-        if not secrets.compare_digest(api_key, expected_key):
-            return JSONResponse(status_code=403, content={"detail": "Invalid API key"})
+        token = auth_header.removeprefix("Bearer ")
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            request.state.current_user = payload
+        except jwt.ExpiredSignatureError:
+            return JSONResponse(status_code=401, content={"detail": "Token expired"})
+        except jwt.InvalidTokenError:
+            return JSONResponse(status_code=401, content={"detail": "Invalid token"})
 
         return await call_next(request)
