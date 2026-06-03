@@ -489,8 +489,19 @@ class UserOut(BaseModel):
     name: str
     email: str
     role: str
+    avatar: str = ""
 
     model_config = {"from_attributes": True}
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    avatar: str | None = None
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=6)
 
 
 class LoginResponse(BaseModel):

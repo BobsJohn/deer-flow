@@ -11,7 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.db_models import Team, User
-from app.models import LoginRequest, LoginResponse, RegisterRequest, UserOut
+from app.models import (
+    LoginRequest,
+    LoginResponse,
+    PasswordChange,
+    ProfileUpdate,
+    RegisterRequest,
+    UserOut,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +66,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         email=body.email,
         role=body.role or "user",
         password_hash=hash_password(body.password),
+        avatar="",
     )
     db.add(user)
     await db.commit()
@@ -73,6 +81,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
             name=user.name,
             email=user.email,
             role=user.role,
+            avatar=user.avatar or "",
         ),
     )
 
@@ -92,6 +101,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             name=user.name,
             email=user.email,
             role=user.role,
+            avatar=user.avatar or "",
         ),
     )
 
@@ -107,4 +117,41 @@ async def get_me(current_user: dict = Depends(get_current_user), db: AsyncSessio
         name=user.name,
         email=user.email,
         role=user.role,
+        avatar=user.avatar or "",
     )
+
+@router.put("/me", response_model=UserOut)
+async def update_profile(
+    body: ProfileUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, current_user["user_id"])
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if body.name is not None:
+        user.name = body.name
+    if body.avatar is not None:
+        user.avatar = body.avatar
+    await db.commit()
+    await db.refresh(user)
+    return UserOut(
+        id=user.id, team_id=user.team_id, name=user.name,
+        email=user.email, role=user.role, avatar=user.avatar,
+    )
+
+
+@router.put("/me/password", status_code=200)
+async def change_password(
+    body: PasswordChange,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await db.get(User, current_user["user_id"])
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.password_hash != hash_password(body.old_password):
+        raise HTTPException(status_code=400, detail="旧密码错误")
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return {"success": True}

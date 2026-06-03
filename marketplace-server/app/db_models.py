@@ -282,6 +282,7 @@ class User(Base):
     email = Column(String(256), unique=True, nullable=False)
     role = Column(Enum("admin", "developer", "user", name="user_role"), nullable=False, default="user")
     password_hash = Column(String(128), nullable=False, default="")
+    avatar = Column(String(32), default="")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     team = relationship("Team", back_populates="users", lazy="select")

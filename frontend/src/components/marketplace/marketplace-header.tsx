@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { UserMenu } from "./user-menu";
 
 const NAV_ITEMS = [
   { href: "/marketplace", label: "市场" },
@@ -45,6 +46,7 @@ export function MarketplaceHeader({
               {item.label}
             </Link>
           ))}
+          <div className="ml-2"><UserMenu /></div>
           {rightSlot}
         </nav>
       </div>

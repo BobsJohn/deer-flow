@@ -44,6 +44,11 @@ export function useApi() {
         body: JSON.stringify(body),
       }).catch(handleUnauth),
     del: <T>(path: string) => apiFetch<T>(path, token, { method: "DELETE" }).catch(handleUnauth),
+    put: <T>(path: string, body: unknown) =>
+      apiFetch<T>(path, token, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).catch(handleUnauth),
   };
 }
 
