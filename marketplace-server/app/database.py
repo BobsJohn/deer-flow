@@ -38,6 +38,7 @@ async def init_db() -> None:
     from app.db_models import (  # noqa: F401
         Agent,
         ApiKey,
+        AuditLog,
         DigitalEmployee,
         ExecutionLog,
         KbDocument,

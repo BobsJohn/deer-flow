@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth import AuthMiddleware
 from app.database import init_db
 from app.routers import (
+    admin,
     agents,
     api_keys,
     auth,
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(knowledge.router)
     app.include_router(dashboard.router)
     app.include_router(search.router)
+    app.include_router(admin.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, str]:

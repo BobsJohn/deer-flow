@@ -1,20 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "./auth-context";
 import { UserMenu } from "./user-menu";
 
-const NAV_ITEMS = [
+const COMMON_NAV = [
   { href: "/marketplace", label: "市场" },
   { href: "/marketplace/teams", label: "团队" },
 ];
 
 export function MarketplaceHeader({
   backTo,
-  rightSlot,
 }: {
   backTo?: { href: string; label: string };
-  rightSlot?: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const navItems = [...COMMON_NAV];
+  if (user?.role === "admin" || user?.role === "developer") {
+    navItems.push({ href: "/marketplace/my-skills", label: "我的技能" });
+  }
   return (
     <header className="sticky top-0 z-50 border-b border-neutral-800/50 bg-neutral-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
@@ -40,14 +44,13 @@ export function MarketplaceHeader({
         </div>
 
         <nav className="flex items-center gap-1">
-          {!backTo && NAV_ITEMS.map((item) => (
+          {!backTo && navItems.map((item) => (
             <Link key={item.href} href={item.href}
               className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-neutral-500 transition-all hover:bg-neutral-800/60 hover:text-neutral-200">
               {item.label}
             </Link>
           ))}
           <div className="ml-2"><UserMenu /></div>
-          {rightSlot}
         </nav>
       </div>
     </header>

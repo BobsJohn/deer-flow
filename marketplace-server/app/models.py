@@ -453,6 +453,7 @@ class DashboardStats(BaseModel):
     total_users: int = 0
     total_executions: int = 0
     total_licenses: int = 0
+    total_pending_skills: int = 0
 
 
 # ─── Search ───

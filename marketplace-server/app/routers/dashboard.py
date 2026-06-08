@@ -46,4 +46,8 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(func.count()).select_from(model))
         setattr(stats, attr, result.scalar() or 0)
 
+    # 待审核技能
+    pending = await db.execute(select(func.count()).select_from(Skill).where(Skill.status.in_(["draft", "review"])))
+    stats.total_pending_skills = pending.scalar() or 0
+
     return stats

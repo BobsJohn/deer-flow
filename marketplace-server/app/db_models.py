@@ -239,6 +239,21 @@ class ExecutionLog(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
 
+class AuditLog(Base):
+    """管理员操作日志"""
+
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_name = Column(String(128), nullable=False, default="")
+    action = Column(String(64), nullable=False)  # e.g. "update_role", "review_skill"
+    target_type = Column(String(32), nullable=False)  # "user", "skill"
+    target_id = Column(Integer, nullable=False)
+    detail = Column(Text, default="{}")  # JSON 详情
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+
 class KnowledgeBase(Base):
     """知识库"""
 

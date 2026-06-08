@@ -28,6 +28,7 @@ export function UserMenu() {
           className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50 transition-all">
           <span className="text-base">{avatar}</span>
           <span className="max-w-[100px] truncate">{user.name}</span>
+          {user.role === "admin" && <span className="text-[10px] text-amber-400 font-medium bg-amber-500/10 rounded px-1.5 py-0.5">Admin</span>}
         </button>
 
         {open && (
@@ -44,6 +45,12 @@ export function UserMenu() {
               className="block w-full rounded-lg px-3 py-1.5 text-left text-[12px] text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200 transition-all">
               修改密码
             </a>
+            {user.role === "admin" && (
+              <a href="/marketplace/admin"
+                className="block w-full rounded-lg px-3 py-1.5 text-left text-[12px] text-amber-400/70 hover:bg-neutral-800 hover:text-amber-400 transition-all">
+                ⚙ 后台管理
+              </a>
+            )}
             <div className="border-t border-neutral-800/40 mt-1 pt-1">
               <button onClick={() => { logout(); window.location.href = "/marketplace/login"; }}
                 className="w-full rounded-lg px-3 py-1.5 text-left text-[12px] text-rose-400/70 hover:bg-neutral-800 hover:text-rose-400 transition-all">

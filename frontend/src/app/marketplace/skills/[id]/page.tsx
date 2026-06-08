@@ -31,6 +31,9 @@ export default function SkillDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [licenseKey, setLicenseKey] = useState("");
   const [showLicenseInput, setShowLicenseInput] = useState(false);
+  const [showInstallSuccess, setShowInstallSuccess] = useState(false);
+  const [showConfirmOverwrite, setShowConfirmOverwrite] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !token) router.push("/marketplace/login");
@@ -40,11 +43,37 @@ export default function SkillDetailPage() {
     if (!token) return;
     setLoading(true);
     setError(null);
-    api.get<SkillDetail>(`/skills/${skillId}`)
-      .then(setSkill)
-      .catch((e) => setError(e.message === "HTTP 404" ? "技能未找到" : e.message))
-      .finally(() => setLoading(false));
+    fetchSkill();
   }, [skillId, token]);
+
+  const fetchSkill = async () => {
+    try {
+      const data = await api.get<SkillDetail>(`/skills/${skillId}`);
+      setSkill(data);
+    } catch (e) {
+      setError(e instanceof Error ? (e.message === "HTTP 404" ? "技能未找到" : e.message) : "加载失败");
+    }
+    setLoading(false);
+  };
+
+  const install = async (force = false) => {
+    if (!token) return;
+    setInstalling(true);
+    try {
+      await api.post(`/skills/${skillId}/install${force ? "?force=true" : ""}`, {});
+      setShowInstallSuccess(true);
+      setShowConfirmOverwrite(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("409") || e instanceof Object) {
+        setShowConfirmOverwrite(true);
+      }
+    }
+    setInstalling(false);
+  };
+
+  const installSkill = () => install(false);
+  const forceInstall = () => install(true);
 
   if (loading) {
     return (
@@ -82,16 +111,6 @@ export default function SkillDetailPage() {
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
       <MarketplaceHeader
         backTo={{ href: "/marketplace", label: "返回市场" }}
-        rightSlot={
-          skill.permission_level === "public" ? (
-            <button className="rounded-lg bg-neutral-800 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-neutral-700 transition-all">直接使用</button>
-          ) : skill.permission_level === "commercial" && !showLicenseInput ? (
-            <button onClick={() => setShowLicenseInput(true)}
-              className="rounded-lg bg-violet-600/20 px-4 py-1.5 text-[13px] font-medium text-violet-300 border border-violet-600/30 hover:bg-violet-600/30 transition-all">授权使用</button>
-          ) : (
-            <button className="rounded-lg bg-neutral-800 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-neutral-700 transition-all">团队使用</button>
-          )
-        }
       />
       <main className="mx-auto max-w-4xl px-6 py-10">
         <div className="mb-8 flex flex-col gap-4">
@@ -103,6 +122,10 @@ export default function SkillDetailPage() {
           </div>
           <h1 className="text-[26px] font-bold tracking-tight">{skill.name}</h1>
           <p className="text-[14px] leading-relaxed text-neutral-400 max-w-2xl">{skill.description}</p>
+          <button onClick={installSkill} disabled={installing}
+            className="self-start rounded-lg bg-neutral-200 px-4 py-2 text-[13px] font-medium text-neutral-900 hover:bg-white disabled:opacity-50 transition-all">
+            {installing ? "安装中..." : "直接使用"}
+          </button>
           {(skill.tags ?? []).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {(skill.tags ?? []).map((tag) => (
@@ -179,6 +202,26 @@ export default function SkillDetailPage() {
               <input value={licenseKey} onChange={(e) => setLicenseKey(e.target.value)} placeholder="输入 License Key"
                 className="flex-1 h-10 rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 text-[13px] text-neutral-200 outline-none focus:border-violet-600/50" />
               <button className="rounded-lg bg-violet-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-violet-500 transition-colors">验证</button>
+            </div>
+          </section>
+        )}
+
+        {showInstallSuccess && (
+          <section className="rounded-xl border border-emerald-800/40 bg-emerald-950/20 p-5 mb-4">
+            <p className="text-emerald-400 text-[13px] font-medium">✅ 技能已安装到 DeerFlow</p>
+            <p className="text-[12px] text-neutral-500 mt-1">重启 DeerFlow 后即可使用该技能。</p>
+            <button onClick={() => setShowInstallSuccess(false)} className="mt-2 text-[12px] text-neutral-500 hover:text-neutral-300">关闭</button>
+          </section>
+        )}
+
+        {showConfirmOverwrite && (
+          <section className="rounded-xl border border-amber-800/40 bg-amber-950/20 p-5 mb-4">
+            <p className="text-amber-400 text-[13px] font-medium">技能已存在</p>
+            <p className="text-[12px] text-neutral-500 mt-1">该技能已安装过，是否覆盖？</p>
+            <div className="flex gap-2 mt-3">
+              <button onClick={forceInstall} disabled={installing}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-[12px] text-white hover:bg-amber-500 transition-all">覆盖</button>
+              <button onClick={() => setShowConfirmOverwrite(false)} className="rounded-lg bg-neutral-800 px-3 py-1.5 text-[12px] text-neutral-400 hover:text-neutral-200 transition-all">取消</button>
             </div>
           </section>
         )}

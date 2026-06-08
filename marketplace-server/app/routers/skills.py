@@ -16,6 +16,7 @@ from app.models import (
     SkillVersionOut,
 )
 from app.routers.common import dump_json_field, parse_json_field, raise_not_found
+from app.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,17 @@ async def list_skills(
     result = await db.execute(stmt)
     skills = result.scalars().all()
     return [_skill_to_out(s) for s in skills]
+
+
+@router.get("/mine", response_model=list[SkillOut])
+async def list_my_skills(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """当前用户所在团队的技能列表。"""
+    stmt = select(Skill).where(Skill.team_id == current_user.get("team_id")).order_by(Skill.updated_at.desc())
+    rows = (await db.execute(stmt)).scalars().all()
+    return [_skill_to_out(s) for s in rows]
 
 
 @router.get("/{skill_id}", response_model=SkillOut)
@@ -140,3 +152,120 @@ def _skill_to_out(skill: Skill) -> SkillOut:
         created_at=skill.created_at,
         updated_at=skill.updated_at,
     )
+
+
+@router.get("/mine", response_model=list[SkillOut])
+async def list_my_skills(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """当前用户所在团队的技能列表。"""
+    stmt = select(Skill).where(Skill.team_id == current_user.get("team_id")).order_by(Skill.updated_at.desc())
+    rows = (await db.execute(stmt)).scalars().all()
+    result = []
+    for skill in rows:
+        result.append(SkillOut(
+            id=skill.id, team_id=skill.team_id,
+            name=skill.name, description=skill.description,
+            type=skill.type, permission_level=skill.permission_level,
+            category=parse_json_field(skill.category, []),
+            tags=parse_json_field(skill.tags, []),
+            version=skill.version, status=skill.status,
+            plugin_bundle_id=skill.plugin_bundle_id,
+            created_at=skill.created_at, updated_at=skill.updated_at,
+        ))
+    return [_skill_to_out(s) for s in result]
+
+
+@router.put("/{skill_id}/resubmit", response_model=SkillOut)
+async def resubmit_skill(
+    skill_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """重新提交审核（仅 draft→review）。"""
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise_not_found("Skill", skill_id)
+    if skill.status != "draft":
+        raise HTTPException(status_code=400, detail="仅草稿状态的技能可以重新提交")
+    if skill.team_id != current_user.get("team_id"):
+        raise HTTPException(status_code=403, detail="无权操作此技能")
+    skill.status = "review"
+    await db.commit()
+    await db.refresh(skill)
+    return SkillOut(
+        id=skill.id, team_id=skill.team_id,
+        name=skill.name, description=skill.description,
+        type=skill.type, permission_level=skill.permission_level,
+        category=parse_json_field(skill.category, []),
+        tags=parse_json_field(skill.tags, []),
+        version=skill.version, status=skill.status,
+        plugin_bundle_id=skill.plugin_bundle_id,
+        created_at=skill.created_at, updated_at=skill.updated_at,
+    )
+
+
+@router.post("/{skill_id}/install")
+async def install_skill(
+    skill_id: int,
+    force: bool = False,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """安装 Skill 到 DeerFlow skills/custom/ 目录。"""
+    import os
+    from pathlib import Path
+
+    skill = await db.get(Skill, skill_id)
+    if skill is None:
+        raise_not_found("Skill", skill_id)
+
+    # 权限校验
+    if skill.permission_level == "commercial":
+        raise HTTPException(status_code=403, detail="商业级技能需要有效的 License 才能使用")
+    if skill.status != "published":
+        raise HTTPException(status_code=400, detail="仅已发布的技能可以安装")
+
+    content = skill.content_public or f"# {skill.name}\n\n{skill.description}\n"
+    tags_str = ", ".join(parse_json_field(skill.tags, []))
+    category_str = ", ".join(parse_json_field(skill.category, []))
+
+    # 生成 SKILL.md
+    skill_md = f"""---
+name: {skill.name}
+description: {skill.description}
+---
+
+# {skill.name}
+
+{skill.description}
+
+## Metadata
+
+- **Category**: {category_str}
+- **Tags**: {tags_str}
+- **Type**: {skill.type}
+- **Permission Level**: {skill.permission_level}
+
+## Instructions
+
+{content}
+"""
+
+    # 目标路径: deer-flow/skills/custom/
+    base = Path(__file__).resolve().parent.parent.parent.parent / "skills" / "custom"
+    target_dir = base / skill.name.replace(" ", "-").lower()
+    target_file = target_dir / "SKILL.md"
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if target_file.exists() and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=f"技能已存在: {target_file}",
+        )
+
+    target_file.write_text(skill_md, encoding="utf-8")
+
+    return {"success": True, "path": str(target_file.relative_to(base.parent.parent))}
